@@ -7,6 +7,8 @@ import type { Redis } from "ioredis";
 let connection: Redis | undefined;
 
 export function getRedisConnection(): Redis {
-  connection ??= createRedisConnection(process.env.REDIS_URL ?? "redis://localhost:6379");
+  if (!connection) {
+    connection = createRedisConnection(process.env.REDIS_URL ?? "redis://localhost:6379");
+  }
   return connection;
 }
