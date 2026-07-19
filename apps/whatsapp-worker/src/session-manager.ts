@@ -97,6 +97,23 @@ export class SessionManager {
     await channel.reconnect();
   }
 
+  /**
+   * Called when apps/web signals "connect" or "re-scan QR" via the
+   * session-control queue. If this tenant has no session on this
+   * process yet, behaves like startTenant. If one already exists (e.g.
+   * status is logged_out — the channel deliberately doesn't
+   * auto-reconnect after a logout), re-triggers pairing on the existing
+   * channel instead of no-op'ing.
+   */
+  async restartTenant(tenantId: string): Promise<void> {
+    const session = this.sessions.get(tenantId);
+    if (session) {
+      await session.channel.reconnect();
+      return;
+    }
+    await this.startTenant(tenantId);
+  }
+
   async stopTenant(tenantId: string): Promise<void> {
     const session = this.sessions.get(tenantId);
     if (!session) return;

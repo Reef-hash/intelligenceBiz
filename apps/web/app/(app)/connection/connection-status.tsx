@@ -15,7 +15,13 @@ const STATUS_DOT: Record<string, string> = {
   logged_out: "bg-red-500",
 };
 
-export function ConnectionStatus({ initial }: { initial: Connection | null }) {
+export function ConnectionStatus({
+  initial,
+  connectAction,
+}: {
+  initial: Connection | null;
+  connectAction: () => Promise<void>;
+}) {
   const [connection, setConnection] = useState<Connection | null>(initial);
   const [qrImage, setQrImage] = useState<string | null>(null);
 
@@ -55,9 +61,17 @@ export function ConnectionStatus({ initial }: { initial: Connection | null }) {
 
   if (!connection) {
     return (
-      <p className="text-sm text-slate-500">
-        No WhatsApp connection set up yet for this tenant.
-      </p>
+      <div className="max-w-sm space-y-3 rounded-lg border border-slate-200 bg-white p-6">
+        <p className="text-sm text-slate-500">No WhatsApp number connected yet.</p>
+        <form action={connectAction}>
+          <button
+            type="submit"
+            className="rounded bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            Connect WhatsApp
+          </button>
+        </form>
+      </div>
     );
   }
 
@@ -84,10 +98,24 @@ export function ConnectionStatus({ initial }: { initial: Connection | null }) {
         </div>
       )}
 
+      {connection.status === "pending_qr" && !qrImage && (
+        <p className="text-sm text-slate-500">Waiting for a QR code from WhatsApp…</p>
+      )}
+
       {connection.status === "logged_out" && (
-        <p className="text-sm text-amber-700">
-          Session was logged out from the phone. A new QR code will appear shortly.
-        </p>
+        <div className="space-y-2">
+          <p className="text-sm text-amber-700">
+            Session was logged out from the phone. Scan a new QR code to reconnect.
+          </p>
+          <form action={connectAction}>
+            <button
+              type="submit"
+              className="rounded bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              Re-scan QR
+            </button>
+          </form>
+        </div>
       )}
 
       {connection.status === "disconnected" && (
