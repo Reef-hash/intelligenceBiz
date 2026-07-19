@@ -48,13 +48,20 @@ RUN pnpm turbo run build --filter=@intelligencebiz/web
 # public/ aren't included by standalone output, so they're copied in too.
 FROM base AS runner
 WORKDIR /app
+# --create-home: without it, /home/nodejs never exists, so anything
+# that invokes corepack (e.g. a platform Start Command override running
+# `pnpm` instead of this Dockerfile's `node` CMD) fails with EACCES
+# trying to mkdir its cache dir under a /home it can't write to.
+# COREPACK_ENABLE=0 belt-and-braces: even with a home dir, skip
+# corepack's package-manager shim entirely in the runtime image.
 RUN groupadd --system --gid 1001 nodejs \
-  && useradd --system --uid 1001 --gid nodejs nodejs
+  && useradd --system --create-home --uid 1001 --gid nodejs nodejs
 ENV COREPACK_ENABLE=0
 COPY --from=builder --chown=nodejs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nodejs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nodejs:nodejs /app/apps/web/public ./apps/web/public
 USER nodejs
+ENV HOME=/home/nodejs
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 EXPOSE 3000
