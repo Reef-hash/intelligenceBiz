@@ -19,6 +19,7 @@ export type MessageSenderType = "customer" | "ai_agent" | "human_agent";
 export type MessageStatus = "queued" | "sent" | "delivered" | "read" | "failed";
 export type SubscriptionPlan = "free" | "starter" | "pro" | "enterprise";
 export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled";
+export type LlmProvider = "anthropic" | "openai" | "deepseek";
 
 export interface Database {
   public: {
@@ -195,6 +196,8 @@ export interface Database {
           system_prompt: string;
           knowledge_base: unknown[];
           is_active: boolean;
+          llm_provider: LlmProvider;
+          llm_model: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -205,6 +208,8 @@ export interface Database {
           system_prompt?: string;
           knowledge_base?: unknown[];
           is_active?: boolean;
+          llm_provider?: LlmProvider;
+          llm_model?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -1,7 +1,7 @@
 import { createServiceRoleClient } from "@intelligencebiz/database";
+import { createRedisConnection } from "@intelligencebiz/queue";
 import { createLogger } from "@intelligencebiz/shared";
 import { loadConfig } from "./config.js";
-import { createRedisConnection } from "./queue/redis.js";
 import { SessionManager } from "./session-manager.js";
 
 async function main(): Promise<void> {

@@ -5,6 +5,7 @@ export type {
   ConversationStatus,
   Database,
   InsertTables,
+  LlmProvider,
   MessageDirection,
   MessageSenderType,
   MessageStatus,
