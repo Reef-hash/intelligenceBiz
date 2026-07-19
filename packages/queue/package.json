@@ -15,6 +15,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "clean": "rm -rf dist",
+    "test": "vitest run --passWithNoTests",
     "type-check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
