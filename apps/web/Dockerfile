@@ -50,6 +50,7 @@ FROM base AS runner
 WORKDIR /app
 RUN groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs nodejs
+ENV COREPACK_ENABLE=0
 COPY --from=builder --chown=nodejs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nodejs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nodejs:nodejs /app/apps/web/public ./apps/web/public

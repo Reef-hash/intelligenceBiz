@@ -42,6 +42,7 @@ FROM base AS runner
 WORKDIR /app
 RUN groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs nodejs
+ENV COREPACK_ENABLE=0
 COPY --from=builder --chown=nodejs:nodejs /app .
 USER nodejs
 WORKDIR /app/apps/whatsapp-worker
