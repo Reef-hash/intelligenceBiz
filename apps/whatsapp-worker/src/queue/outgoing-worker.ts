@@ -1,35 +1,8 @@
-import { Queue, Worker, type Job } from "bullmq";
+import { Worker, type Job } from "bullmq";
 import type { Redis } from "ioredis";
-import type { MessageContent, SendMessageResult } from "@intelligencebiz/channel-core";
+import type { SendMessageResult } from "@intelligencebiz/channel-core";
+import { outgoingQueueName, type OutgoingJobData } from "@intelligencebiz/queue";
 import type { Logger } from "@intelligencebiz/shared";
-
-export interface OutgoingJobData {
-  tenantId: string;
-  to: string;
-  content: MessageContent;
-  senderType: "ai_agent" | "human_agent";
-}
-
-function queueName(tenantId: string): string {
-  return `whatsapp-outgoing:${tenantId}`;
-}
-
-/**
- * One queue per tenant so BullMQ's worker-level rate limiter enforces a
- * per-number send rate (reduces ban risk) and a disconnected tenant's
- * backlog never blocks another tenant's messages.
- */
-export function createOutgoingQueue(tenantId: string, connection: Redis): Queue<OutgoingJobData> {
-  return new Queue<OutgoingJobData>(queueName(tenantId), {
-    connection,
-    defaultJobOptions: {
-      attempts: 5,
-      backoff: { type: "exponential", delay: 2000 },
-      removeOnComplete: 1000,
-      removeOnFail: 1000,
-    },
-  });
-}
 
 export function createOutgoingWorker(
   tenantId: string,
@@ -43,7 +16,7 @@ export function createOutgoingWorker(
   },
 ): Worker<OutgoingJobData> {
   const worker = new Worker<OutgoingJobData>(
-    queueName(tenantId),
+    outgoingQueueName(tenantId),
     async (job: Job<OutgoingJobData>) => {
       const result = await options.sendMessage(job.data);
       await options.onSent(job.data, result);

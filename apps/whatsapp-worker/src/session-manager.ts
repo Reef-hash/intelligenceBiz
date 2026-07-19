@@ -2,12 +2,12 @@ import type { Queue, Worker } from "bullmq";
 import type { Redis } from "ioredis";
 import type { InboundMessage } from "@intelligencebiz/channel-core";
 import type { TypedSupabaseClient } from "@intelligencebiz/database";
+import { createIncomingQueue, createOutgoingQueue, type OutgoingJobData } from "@intelligencebiz/queue";
 import type { Logger } from "@intelligencebiz/shared";
 import { BaileysChannel } from "./baileys/baileys-channel.js";
 import { ConnectionRepository } from "./db/connection-repository.js";
 import { MessageRepository } from "./db/message-repository.js";
-import { createIncomingQueue } from "./queue/incoming-queue.js";
-import { createOutgoingQueue, createOutgoingWorker, type OutgoingJobData } from "./queue/outgoing-queue.js";
+import { createOutgoingWorker } from "./queue/outgoing-worker.js";
 import { SupabaseSessionStore } from "./session/session-store.js";
 
 export interface SessionManagerConfig {
@@ -28,11 +28,11 @@ interface TenantSession {
 /**
  * Owns one BaileysChannel + one outgoing BullMQ queue/worker pair per
  * tenant running on this worker process. A fleet of these processes,
- * each started for a subset of tenants, is how "worker pool" scaling
- * from the architecture doc is realized — which tenant runs on which
- * process is decided by whoever calls startTenant (apps/api today;
- * a Redis-based scheduler can replace that later without touching this
- * class, since it only knows about the tenants it's told to run).
+ * each started (via startTenant, see index.ts) for a subset of tenants,
+ * is how "worker pool" scaling from the architecture doc is realized.
+ * apps/api never calls into this class directly — it only produces to
+ * and consumes from the same Redis queues (see @intelligencebiz/queue),
+ * so which process runs which tenant stays this app's own concern.
  */
 export class SessionManager {
   private readonly sessions = new Map<string, TenantSession>();
@@ -97,13 +97,21 @@ export class SessionManager {
     await channel.reconnect();
   }
 
-  /** Enqueues a reply instead of calling the channel directly, so it survives a disconnect and is rate-limited. */
-  async enqueueOutgoing(job: OutgoingJobData): Promise<void> {
-    const session = this.sessions.get(job.tenantId);
-    if (!session) {
-      throw new Error(`No active session for tenant ${job.tenantId}`);
+  /**
+   * Called when apps/web signals "connect" or "re-scan QR" via the
+   * session-control queue. If this tenant has no session on this
+   * process yet, behaves like startTenant. If one already exists (e.g.
+   * status is logged_out — the channel deliberately doesn't
+   * auto-reconnect after a logout), re-triggers pairing on the existing
+   * channel instead of no-op'ing.
+   */
+  async restartTenant(tenantId: string): Promise<void> {
+    const session = this.sessions.get(tenantId);
+    if (session) {
+      await session.channel.reconnect();
+      return;
     }
-    await session.outgoingQueue.add("send-message", job);
+    await this.startTenant(tenantId);
   }
 
   async stopTenant(tenantId: string): Promise<void> {

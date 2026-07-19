@@ -1,7 +1,8 @@
 import { createServiceRoleClient } from "@intelligencebiz/database";
+import { createRedisConnection } from "@intelligencebiz/queue";
 import { createLogger } from "@intelligencebiz/shared";
 import { loadConfig } from "./config.js";
-import { createRedisConnection } from "./queue/redis.js";
+import { createSessionControlWorker } from "./queue/session-control-worker.js";
 import { SessionManager } from "./session-manager.js";
 
 async function main(): Promise<void> {
@@ -23,11 +24,11 @@ async function main(): Promise<void> {
     logger,
   });
 
-  // MVP: this process runs every Baileys connection. Splitting tenants
-  // across a fleet of workers (per the architecture doc's "worker pool")
-  // means filtering this query by whichever tenants were assigned to
-  // this WORKER_ID — left for when there's more than one tenant to
-  // actually need that.
+  // Boot-time discovery: start every tenant that was already connected
+  // before this process started. Splitting tenants across a fleet of
+  // workers (per the architecture doc's "worker pool") means filtering
+  // this query by whichever tenants were assigned to this WORKER_ID —
+  // left for when there's more than one tenant to actually need that.
   const { data: connections, error } = await supabase
     .from("whatsapp_connections")
     .select("tenant_id")
@@ -44,8 +45,14 @@ async function main(): Promise<void> {
     await sessionManager.startTenant(connection.tenant_id);
   }
 
+  // Live discovery: apps/web enqueues a job here when a tenant connects
+  // for the first time or re-scans the QR after a logout, so this
+  // process doesn't need a restart to pick up either case.
+  const sessionControlWorker = createSessionControlWorker(redisConnection, sessionManager, logger);
+
   const shutdown = async (signal: string) => {
     logger.info("shutting down", { signal });
+    await sessionControlWorker.close();
     await sessionManager.stopAll();
     await redisConnection.quit();
     process.exit(0);
