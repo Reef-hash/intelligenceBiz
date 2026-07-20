@@ -10,7 +10,7 @@ export interface OutgoingJobData {
 }
 
 export function outgoingQueueName(tenantId: string): string {
-  return `whatsapp-outgoing:${tenantId}`;
+  return `whatsapp-outgoing-${tenantId}`;
 }
 
 /**
