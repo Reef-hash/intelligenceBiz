@@ -1,5 +1,5 @@
 import { Boom } from "@hapi/boom";
-import makeWASocket, { DisconnectReason, type WASocket } from "@whiskeysockets/baileys";
+import makeWASocket, { DisconnectReason, fetchLatestBaileysVersion, type WASocket } from "@whiskeysockets/baileys";
 import type {
   Channel,
   ChannelType,
@@ -86,8 +86,15 @@ export class BaileysChannel implements Channel {
       encryptionKey: this.encryptionKey,
     });
 
+    // The library's bundled default WA Web version can go stale as
+    // WhatsApp rolls out protocol changes, breaking the noise-handshake
+    // with a generic "Connection Failure" before a QR is ever issued —
+    // fetch whatever version WhatsApp currently expects instead.
+    const { version } = await fetchLatestBaileysVersion();
+
     const socket = makeWASocket({
       auth: state,
+      version,
       logger: createBaileysLogger(this.logger, { tenantId: this.tenantId }),
     });
 
